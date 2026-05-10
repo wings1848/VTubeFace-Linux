@@ -64,8 +64,7 @@ def init():
         dll_path = resolve(os.path.join("escapi", "escapi_x64.dll"))
         lib = cdll.LoadLibrary(dll_path)
     if lib is None or lib.ESCAPIVersion() != 0xfff001:
-        print("Invalid ESCAPI DLL found.")
-        sys.exit(1)
+        raise ImportError("Invalid ESCAPI DLL found.")
     lib.initCapture.argtypes = [c_int, POINTER(SimpleCapParms)]
     lib.initCapture.restype = c_int
     lib.initCOM()

@@ -77,12 +77,12 @@ void make_problem(struct svm_problem *problem, float features[], float labels[],
 }
 
 void destroy_svmnode_array(svmnode **x) {
-    delete x[0];
-    delete x;
+    delete[] x[0];
+    delete[] x;
 }
 
 void destroy_problem(struct svm_problem *problem) {
-    delete problem->y;
+    delete[] problem->y;
     destroy_svmnode_array(problem->x);
 }
 
@@ -130,8 +130,8 @@ extern "C" {
         sw->model = svm_train(sw->problem, &sw->param);
 
         if (weights != NULL) {
-            delete sw->param.weight_label;
-            delete sw->param.weight;
+            delete[] sw->param.weight_label;
+            delete[] sw->param.weight;
         }
 
         return sw;
@@ -199,8 +199,8 @@ extern "C" {
 
     __declspec(dllexport) void __cdecl destroyModel(void *ptr) {
         struct SVMWrapper *sw = (struct SVMWrapper *)ptr;
-        delete sw->means;
-        delete sw->sdevs;
+        delete[] sw->means;
+        delete[] sw->sdevs;
         svm_free_and_destroy_model(&sw->model);
         if (sw->problem != NULL) {
             destroy_problem(sw->problem);

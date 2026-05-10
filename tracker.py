@@ -347,6 +347,15 @@ class FaceInfo():
         if self.tracker.max_feature_updates > 0:
             self.features = FeatureExtractor(self.tracker.max_feature_updates)
 
+        # Pre-allocated arrays for adjust_3d to reduce per-frame allocations
+        self._d_o = np.ones((66,), dtype=np.float32)
+        self._d_c = np.ones((66,), dtype=np.float32)
+        self._r = np.empty((66, 3), dtype=np.float32)
+        self._updated = np.empty((66, 3), dtype=np.float32)
+        self._o_projected = np.ones((66, 2), dtype=np.float32)
+        self._c_projected = np.zeros((66, 2), dtype=np.float32)
+        self._weights = np.zeros((66, 3), dtype=np.float32)
+
     def reset(self):
         self.alive = False
         self.conf = None
@@ -408,28 +417,28 @@ class FaceInfo():
             eligible = np.delete(np.arange(0, 66), [30])
             changed_any = False
             update_type = -1
-            d_o = np.ones((66,))
-            d_c = np.ones((66,))
+            self._d_o[:] = 1.0
+            self._d_c[:] = 1.0
             for runs in range(max_runs):
-                r = 1.0 + np.random.random_sample((66,3)) * 0.02 - 0.01
-                r[30, :] = 1.0
+                self._r[:] = 1.0 + np.random.random_sample((66,3)) * 0.02 - 0.01
+                self._r[30, :] = 1.0
                 if self.euler[0] > -165 and self.euler[0] < 145:
                     continue
                 elif self.euler[1] > -10 and self.euler[1] < 20:
-                    r[:, 2] = 1.0
+                    self._r[:, 2] = 1.0
                     update_type = 0
                 else:
-                    r[:, 0:2] = 1.0
+                    self._r[:, 0:2] = 1.0
                     if self.euler[2] > 120 or self.euler[2] < 60:
                         continue
                     # Enable only one side of the points, depending on direction
                     elif self.euler[1] < -10:
                         update_type = 1
-                        r[[0, 1, 2, 3, 4, 5, 6, 7, 17, 18, 19, 20, 21, 31, 32, 36, 37, 38, 39, 40, 41, 48, 49, 56, 57, 58, 59, 65], 2] = 1.0
+                        self._r[[0, 1, 2, 3, 4, 5, 6, 7, 17, 18, 19, 20, 21, 31, 32, 36, 37, 38, 39, 40, 41, 48, 49, 56, 57, 58, 59, 65], 2] = 1.0
                         eligible = [8, 9, 10, 11, 12, 13, 14, 15, 16, 22, 23, 24, 25, 26, 27, 28, 29, 33, 34, 35, 42, 43, 44, 45, 46, 47, 50, 51, 52, 53, 54, 55, 60, 61, 62, 63, 64]
                     else:
                         update_type = 1
-                        r[[9, 10, 11, 12, 13, 14, 15, 16, 22, 23, 24, 25, 26, 34, 35, 42, 43, 44, 45, 46, 47, 51, 52, 53, 54, 61, 62, 63], 2] = 1.0
+                        self._r[[9, 10, 11, 12, 13, 14, 15, 16, 22, 23, 24, 25, 26, 34, 35, 42, 43, 44, 45, 46, 47, 51, 52, 53, 54, 61, 62, 63], 2] = 1.0
                         eligible = [0, 1, 2, 3, 4, 5, 6, 7, 8, 17, 18, 19, 20, 21, 27, 28, 29, 31, 32, 33, 36, 37, 38, 39, 40, 41, 48, 49, 50, 55, 56, 57, 58, 59, 60, 64, 65]
 
                 if self.limit_3d_adjustment:
@@ -438,24 +447,24 @@ class FaceInfo():
                         break
 
                 if runs == 0:
-                    updated = copy.copy(self.face_3d[0:66])
-                    o_projected = np.ones((66,2))
-                    o_projected[eligible] = np.squeeze(np.array(cv2.projectPoints(self.face_3d[eligible], self.rotation, self.translation, self.tracker.camera, self.tracker.dist_coeffs)[0]), 1)
-                c = updated * r
-                c_projected = np.zeros((66,2))
-                c_projected[eligible] = np.squeeze(np.array(cv2.projectPoints(c[eligible], self.rotation, self.translation, self.tracker.camera, self.tracker.dist_coeffs)[0]), 1)
+                    self._updated[:] = self.face_3d[0:66]
+                    self._o_projected[:] = 1.0
+                    self._o_projected[eligible] = np.squeeze(np.array(cv2.projectPoints(self.face_3d[eligible], self.rotation, self.translation, self.tracker.camera, self.tracker.dist_coeffs)[0]), 1)
+                c = self._updated * self._r
+                self._c_projected[:] = 0.0
+                self._c_projected[eligible] = np.squeeze(np.array(cv2.projectPoints(c[eligible], self.rotation, self.translation, self.tracker.camera, self.tracker.dist_coeffs)[0]), 1)
                 changed = False
 
-                d_o[eligible] = np.linalg.norm(o_projected[eligible] - self.lms[eligible, 0:2], axis=1)
-                d_c[eligible] = np.linalg.norm(c_projected[eligible] - self.lms[eligible, 0:2], axis=1)
-                indices = np.nonzero(d_c < d_o)[0]
+                self._d_o[eligible] = np.linalg.norm(self._o_projected[eligible] - self.lms[eligible, 0:2], axis=1)
+                self._d_c[eligible] = np.linalg.norm(self._c_projected[eligible] - self.lms[eligible, 0:2], axis=1)
+                indices = np.nonzero(self._d_c < self._d_o)[0]
                 if indices.shape[0] > 0:
                     if self.limit_3d_adjustment:
                         indices = np.intersect1d(indices, eligible)
                     if indices.shape[0] > 0:
                         self.update_counts[indices, update_type] += 1
-                        updated[indices] = c[indices]
-                        o_projected[indices] = c_projected[indices]
+                        self._updated[indices] = c[indices]
+                        self._o_projected[indices] = self._c_projected[indices]
                         changed = True
                 changed_any = changed_any or changed
 
@@ -464,14 +473,14 @@ class FaceInfo():
 
             if changed_any:
                 # Update weighted by point confidence
-                weights = np.zeros((66,3))
-                weights[:, :] = self.lms[0:66, 2:3]
-                weights[weights > 0.7] = 1.0
-                weights = 1.0 - weights
+                self._weights[:] = 0.0
+                self._weights[:, :] = self.lms[0:66, 2:3]
+                self._weights[self._weights > 0.7] = 1.0
+                np.subtract(1.0, self._weights, out=self._weights)
                 update_indices = np.arange(0, 66)
                 if self.limit_3d_adjustment:
                     update_indices = np.nonzero(self.update_counts[:, update_type] <= self.update_count_max)[0]
-                self.face_3d[update_indices] = self.face_3d[update_indices] * weights[update_indices] + updated[update_indices] * (1. - weights[update_indices])
+                self.face_3d[update_indices] = self.face_3d[update_indices] * self._weights[update_indices] + self._updated[update_indices] * (1. - self._weights[update_indices])
                 self.update_contour()
 
         self.pts_3d = self.normalize_pts3d(self.pts_3d)
@@ -514,7 +523,11 @@ class Tracker():
         # Detect GPU acceleration availability and configure accordingly
         # (must happen before model file selection)
         if 'CUDAExecutionProvider' in onnxruntime.capi._pybind_state.get_available_providers():
-            providersList = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+            cuda_provider_options = {
+                'gpu_mem_limit': 2 * 1024 * 1024 * 1024,  # 2GB limit
+                'arena_extend_strategy': 'kSameAsRequested',
+            }
+            providersList = [('CUDAExecutionProvider', cuda_provider_options), 'CPUExecutionProvider']
             self._use_gpu = True
             model_suffix = '_gpu.onnx'
             options.intra_op_num_threads = 1
@@ -523,8 +536,11 @@ class Tracker():
             self._use_gpu = False
             model_suffix = '_opt.onnx'
 
-        self.retinaface = RetinaFaceDetector(model_path=os.path.join(model_base_path, f"retinaface_640x640{model_suffix}"), json_path=os.path.join(model_base_path, "priorbox_640x640.json"), threads=max(max_threads,4), top_k=max_faces, res=(640, 640), providers=providersList)
-        self.retinaface_scan = RetinaFaceDetector(model_path=os.path.join(model_base_path, f"retinaface_640x640{model_suffix}"), json_path=os.path.join(model_base_path, "priorbox_640x640.json"), threads=2, top_k=max_faces, res=(640, 640), providers=providersList)
+        self.retinaface = None
+        self.retinaface_scan = None
+        if use_retinaface > 0 or try_hard:
+            self.retinaface = RetinaFaceDetector(model_path=os.path.join(model_base_path, f"retinaface_640x640{model_suffix}"), json_path=os.path.join(model_base_path, "priorbox_640x640.json"), threads=max(max_threads,4), top_k=max_faces, res=(640, 640), providers=providersList)
+            self.retinaface_scan = RetinaFaceDetector(model_path=os.path.join(model_base_path, f"retinaface_640x640{model_suffix}"), json_path=os.path.join(model_base_path, "priorbox_640x640.json"), threads=2, top_k=max_faces, res=(640, 640), providers=providersList)
         self.use_retinaface = use_retinaface
 
         # Build model filename with appropriate suffix
@@ -552,30 +568,35 @@ class Tracker():
         # Multiple faces with single threads
         self.sessions = []
         self.max_workers = max(min(max_threads, max_faces), 1)
-        extra_threads = max_threads % self.max_workers
-        for i in range(self.max_workers):
-            options = onnxruntime.SessionOptions()
-            options.inter_op_num_threads = 1
-            if self._use_gpu:
-                options.intra_op_num_threads = 1
-            else:
-                options.intra_op_num_threads = min(max(max_threads // self.max_workers, 4), 1)
-                if options.intra_op_num_threads < 1:
+        if max_faces > 1:
+            extra_threads = max_threads % self.max_workers
+            for i in range(self.max_workers):
+                options = onnxruntime.SessionOptions()
+                options.inter_op_num_threads = 1
+                if self._use_gpu:
                     options.intra_op_num_threads = 1
-                elif i < extra_threads:
-                    options.intra_op_num_threads += 1
-            options.execution_mode = onnxruntime.ExecutionMode.ORT_SEQUENTIAL
-            options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
-            self.sessions.append(onnxruntime.InferenceSession(os.path.join(model_base_path, model), sess_options=options, providers=providersList))
+                else:
+                    options.intra_op_num_threads = min(max(max_threads // self.max_workers, 4), 1)
+                    if options.intra_op_num_threads < 1:
+                        options.intra_op_num_threads = 1
+                    elif i < extra_threads:
+                        options.intra_op_num_threads += 1
+                options.execution_mode = onnxruntime.ExecutionMode.ORT_SEQUENTIAL
+                options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
+                self.sessions.append(onnxruntime.InferenceSession(os.path.join(model_base_path, model), sess_options=options, providers=providersList))
+        else:
+            self.sessions = [self.session]
         self.input_name = self.session.get_inputs()[0].name
 
-        options = onnxruntime.SessionOptions()
-        options.inter_op_num_threads = 1
-        options.intra_op_num_threads = 1 if self._use_gpu else 1
-        options.execution_mode = onnxruntime.ExecutionMode.ORT_SEQUENTIAL
-        options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
-        options.log_severity_level = 3
-        self.gaze_model = onnxruntime.InferenceSession(os.path.join(model_base_path, model_name("mnv3_gaze32_split")), sess_options=options, providers=providersList)
+        self.gaze_model = None
+        if not no_gaze:
+            options = onnxruntime.SessionOptions()
+            options.inter_op_num_threads = 1
+            options.intra_op_num_threads = 1 if self._use_gpu else 1
+            options.execution_mode = onnxruntime.ExecutionMode.ORT_SEQUENTIAL
+            options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
+            options.log_severity_level = 3
+            self.gaze_model = onnxruntime.InferenceSession(os.path.join(model_base_path, model_name("mnv3_gaze32_split")), sess_options=options, providers=providersList)
 
         self.detection = onnxruntime.InferenceSession(os.path.join(model_base_path, model_name("mnv3_detection")), sess_options=options, providers=providersList)
         self.faces = []
@@ -1079,7 +1100,7 @@ class Tracker():
                 pass  # skip this frame's detection
             else:
                 start_fd = time.perf_counter()
-                if self.use_retinaface > 0 or self.try_hard:
+                if (self.use_retinaface > 0 or self.try_hard) and self.retinaface is not None:
                     retinaface_detections = self.retinaface.detect_retina(frame)
                     new_faces.extend(retinaface_detections)
                 if self.use_retinaface == 0 or self.try_hard:
@@ -1089,10 +1110,10 @@ class Tracker():
                 duration_fd = 1000 * (time.perf_counter() - start_fd)
                 self.wait_count = 0
         elif self.detected < self.max_faces:
-            if self.use_retinaface > 0:
+            if self.use_retinaface > 0 and self.retinaface_scan is not None:
                 new_faces.extend(self.retinaface_scan.get_results())
             if self.wait_count >= self.scan_every:
-                if self.use_retinaface > 0:
+                if self.use_retinaface > 0 and self.retinaface_scan is not None:
                     self.retinaface_scan.background_detect(frame)
                 else:
                     start_fd = time.perf_counter()

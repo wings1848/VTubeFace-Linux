@@ -405,10 +405,6 @@ try:
                     break
             failures = 0
         except Exception as e:
-            if e.__class__ == KeyboardInterrupt:
-                if args.silent == 0:
-                    print("Quitting")
-                break
             traceback.print_exc()
             failures += 1
             if failures > 30:
