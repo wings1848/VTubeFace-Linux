@@ -278,8 +278,6 @@ try:
                 if args.silent == 0:
                     print(f"Confidence[{f.id}]: {f.conf:.4f} / 3D fitting error: {f.pnp_error:.4f} / Eyes: {left_state}, {right_state}")
                 detected = True
-                if not f.success:
-                    pts_3d = np.zeros((70, 3), np.float32)
                 packet.extend(struct.pack("=di", now, f.id))
                 packet.extend(struct.pack("=ffffBf", width, height, f.eye_blink[0], f.eye_blink[1], 1 if f.success else 0, f.pnp_error))
                 packet.extend(struct.pack("=ffff", f.quaternion[0], f.quaternion[1], f.quaternion[2], f.quaternion[3]))

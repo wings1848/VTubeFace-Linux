@@ -91,7 +91,7 @@ class DShowCaptureReader(VideoReader):
         img = None
         try:
             img = self.device.get_frame(self.timeout)
-        except:
+        except Exception:
             gc.collect()
             img = self.device.get_frame(self.timeout)
         if img is None:
@@ -174,7 +174,7 @@ class RawReader:
 def try_int(s):
     try:
         return int(s)
-    except:
+    except Exception:
         return None
 
 def test_reader(reader):
@@ -196,7 +196,7 @@ def test_reader(reader):
             return got_any > 0
         print("Fail")
         return False
-    except:
+    except Exception:
         traceback.print_exc()
         print("Except")
         return False
@@ -223,7 +223,7 @@ class InputReader():
                             self.name = name
                         else:
                             good = False
-                    except:
+                    except Exception:
                         print("DShowCapture exception: ")
                         traceback.print_exc()
                         good = False
@@ -246,7 +246,7 @@ class InputReader():
                             print(f"Found device {name} as {i}.", file=sys.stderr)
                             self.reader = EscapiReader(found, width, height, fps)
                             good = test_reader(self.reader)
-                    except:
+                    except Exception:
                         print("Escapi exception: ")
                         traceback.print_exc()
                         good = False
@@ -259,7 +259,7 @@ class InputReader():
                 elif sys.platform == 'linux':
                     try:
                         self.reader = V4L2Reader(int(capture), width, height, fps, dcap)
-                    except:
+                    except Exception:
                         print("V4L2 exception: ")
                         traceback.print_exc()
                         print(f"V4L2 failed. Falling back to OpenCV. If this fails, please change your camera settings.", file=sys.stderr)

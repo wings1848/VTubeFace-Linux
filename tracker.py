@@ -141,7 +141,7 @@ def worker_thread(session, frame, input, crop_info, queue, input_name, idx, trac
         if not tracker.no_gaze:
             try:
                 eye_state = tracker.get_eye_state(frame, lms)
-            except:
+            except Exception:
                 eye_state = [(1.0, 0.0, 0.0, 0.0), (1.0, 0.0, 0.0, 0.0)]
         else:
             eye_state = [(1.0, 0.0, 0.0, 0.0), (1.0, 0.0, 0.0, 0.0)]
@@ -538,7 +538,7 @@ class Tracker():
 
         self.retinaface = None
         self.retinaface_scan = None
-        if use_retinaface > 0 or try_hard:
+        if use_retinaface > 0:
             self.retinaface = RetinaFaceDetector(model_path=os.path.join(model_base_path, f"retinaface_640x640{model_suffix}"), json_path=os.path.join(model_base_path, "priorbox_640x640.json"), threads=max(max_threads,4), top_k=max_faces, res=(640, 640), providers=providersList)
             self.retinaface_scan = RetinaFaceDetector(model_path=os.path.join(model_base_path, f"retinaface_640x640{model_suffix}"), json_path=os.path.join(model_base_path, "priorbox_640x640.json"), threads=2, top_k=max_faces, res=(640, 640), providers=providersList)
         self.use_retinaface = use_retinaface
@@ -1072,7 +1072,7 @@ class Tracker():
             if face_info.frame_count != self.frame_count:
                 face_info.update(None, None, self.frame_count)
 
-    def predict(self, frame, additional_faces=[]):
+    def predict(self, frame, additional_faces=None):
         self.frame_count += 1
         start = time.perf_counter()
         im = frame
@@ -1085,7 +1085,7 @@ class Tracker():
         new_faces = []
         new_faces.extend(self.faces)
         bonus_cutoff = len(self.faces)
-        new_faces.extend(additional_faces)
+        new_faces.extend(additional_faces if additional_faces is not None else [])
         self.wait_count += 1
         if self.detected == 0:
             self.no_face_consecutive += 1
@@ -1163,7 +1163,7 @@ class Tracker():
                 if not self.no_gaze:
                     try:
                         eye_state = self.get_eye_state(frame, lms)
-                    except:
+                    except Exception:
                         eye_state = [(1.0, 0.0, 0.0, 0.0), (1.0, 0.0, 0.0, 0.0)]
                 else:
                     eye_state = [(1.0, 0.0, 0.0, 0.0), (1.0, 0.0, 0.0, 0.0)]
