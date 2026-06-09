@@ -157,6 +157,8 @@ public class OpenSeeExpression : MonoBehaviour
         private bool thunderSVM = false;
         //private bool newModel = false;
 
+        // NOTE: BinaryFormatter is deprecated in .NET 5+ and disabled by default in .NET 8+.
+        //       Consider migrating to System.Text.Json or Protobuf for serialization.
         static public void LoadSerialized(byte[] modelBytes, out Dictionary<string, List<float[]>> expressions, out SVMModel model, out string[] classLabels, out int[] indices, ref PointSelection pointSelection) {
             IFormatter formatter = new BinaryFormatter();
             MemoryStream memoryStream = new MemoryStream(modelBytes);
@@ -194,6 +196,7 @@ public class OpenSeeExpression : MonoBehaviour
             oser.thunderSVM = model is ThunderSVMModel;
             //oser.newModel = true;
 
+            // NOTE: BinaryFormatter deprecated — see LoadSerialized comment above.
             IFormatter formatter = new BinaryFormatter();
             MemoryStream memoryStream = new MemoryStream();
             using (GZipStream gzipStream = new GZipStream(memoryStream, CompressionMode.Compress)) {

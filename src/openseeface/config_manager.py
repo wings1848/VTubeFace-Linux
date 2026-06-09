@@ -7,11 +7,12 @@ JSON 格式配置文件读写，支持从旧 .facetracker_config 迁移。
 旧配置路径: config/.facetracker_config
 """
 
+import copy
 import json
 import os
 import shlex
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 # ---------- 路径 ----------
 _PROJECT_ROOT: Optional[Path] = None
@@ -127,7 +128,7 @@ class ConfigManager:
             return self._data
 
         # 使用默认配置
-        self._data = dict(DEFAULT_CONFIG)
+        self._data = copy.deepcopy(DEFAULT_CONFIG)
         self.save()
         return self._data
 
@@ -160,7 +161,7 @@ class ConfigManager:
                     key, _, val = line.partition("=")
                     parsed[key.strip()] = val.strip()
 
-        new_config = dict(DEFAULT_CONFIG)
+        new_config = copy.deepcopy(DEFAULT_CONFIG)
         for old_key, (section, field, converter) in _OLD_TO_NEW.items():
             if old_key in parsed:
                 try:
@@ -186,7 +187,7 @@ class ConfigManager:
 
     # ── 转换为 CLI 参数 ────────────────────────────────────
 
-    def to_cli_args(self) -> list:
+    def to_cli_args(self) -> List[str]:
         """将配置转换为 facetracker CLI 参数列表。"""
         cfg = self._data
         args = []
@@ -242,7 +243,7 @@ class ConfigManager:
         lines.append(f"  质量预设 : {preset_name}")
         lines.append(f"  模型     : {t['model']}")
         lines.append(f"  阈值     : 检测={t['detection_threshold']}, 追踪={t['threshold']}")
-        lines.append(f"  3D自适应 : {'开启' if t['no_3d_adapt'] else '关闭'}")
+        lines.append(f"  3D自适应 : {'关闭' if t['no_3d_adapt'] else '开启'}")
         lines.append(f"  Try-Hard : {'开启' if t['try_hard'] else '关闭'}")
         lines.append(f"  Gaze追踪 : {'开启' if t['gaze'] else '关闭'}")
         lines.append(f"  线程数   : {t['max_threads']}")

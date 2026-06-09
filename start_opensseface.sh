@@ -11,11 +11,14 @@ cd "$SCRIPT_DIR"
 
 # ---------- 帮助 ----------
 if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
-    echo "用法: $(basename "$0") [reconfig|stop]"
+    echo "用法: $(basename "$0") [configure|start|stop|status|reconfig]"
     echo ""
-    echo "  (无参数)  启动面捕（有配置时跳过交互向导）"
-    echo "  reconfig  强制进入交互式配置向导"
-    echo "  stop      停止面捕守护进程"
+    echo "  (无参数)    启动面捕（有配置时跳过交互向导）"
+    echo "  configure   交互式配置向导"
+    echo "  start       后台启动守护进程"
+    echo "  stop        停止面捕守护进程"
+    echo "  status      查看运行状态"
+    echo "  reconfig    等同于 configure"
     echo "  -h, --help  显示本帮助"
     echo ""
     echo "配置保存在: $SCRIPT_DIR/config/config.json"
@@ -37,9 +40,9 @@ err()   { echo -e "${RED}[ERROR]${NC} $*"; }
 if [ ! -d ".venv" ]; then
     info "正在创建虚拟环境..."
     if command -v uv &>/dev/null; then
-        uv venv -p 3.14 .venv 2>&1 | sed 's/^/  /'
+        uv venv .venv
     else
-        python3 -m venv .venv 2>&1 | sed 's/^/  /'
+        python3 -m venv .venv
     fi
     ok "虚拟环境已创建"
 fi
@@ -65,14 +68,13 @@ _ensure_deps() {
     if ! python3 -c "import onnxruntime" 2>/dev/null; then
         info "正在安装依赖..."
         local extra="cpu"
-        if python3 -c "import torch; quit(torch.cuda.is_available())" 2>/dev/null || \
-           nvidia-smi &>/dev/null; then
+        if nvidia-smi &>/dev/null; then
             extra="gpu"
         fi
         if command -v uv &>/dev/null; then
-            uv pip install -e ".[$extra]" 2>&1 | sed 's/^/  /'
+            uv pip install -e ".[$extra]"
         else
-            pip install -e ".[$extra]" 2>&1 | sed 's/^/  /'
+            pip install -e ".[$extra]"
         fi
         ok "依赖安装完成"
     fi

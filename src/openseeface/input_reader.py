@@ -91,7 +91,7 @@ class DShowCaptureReader(VideoReader):
         img = None
         try:
             img = self.device.get_frame(self.timeout)
-        except Exception:
+        except (OSError, RuntimeError):
             gc.collect()
             img = self.device.get_frame(self.timeout)
         if img is None:

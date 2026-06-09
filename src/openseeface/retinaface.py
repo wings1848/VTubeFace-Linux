@@ -3,7 +3,6 @@ import numpy as np
 import cv2
 import onnxruntime
 import time
-import queue
 import threading
 import json
 
@@ -53,8 +52,8 @@ def decode(loc, priors, variances):
 
 def worker_thread(rfd, frame):
     results = rfd.detect_retina(frame, is_background=True)
-    rfd.results.put(results, False)
     with rfd._lock:
+        rfd._result = results
         rfd.finished = True
         rfd.running = False
 
@@ -67,7 +66,7 @@ class RetinaFaceDetector():
         options.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
         options.log_severity_level = 3
         if providers is None:
-            providersList = onnxruntime.capi._pybind_state.get_available_providers()
+            providersList = onnxruntime.get_available_providers()
         else:
             providersList = providers
         self.session = onnxruntime.InferenceSession(model_path, sess_options=options, providers=providersList)
@@ -80,7 +79,7 @@ class RetinaFaceDetector():
         self._lock = threading.Lock()
         self.finished = False
         self.running = False
-        self.results = queue.Queue(maxsize=1)
+        self._result = None  # protected by _lock; replaces thread-unsafe Queue
 
     def detect_retina(self, frame, is_background=False):
         h, w, _ = frame.shape
@@ -111,7 +110,8 @@ class RetinaFaceDetector():
         dets = dets[:self.top_k, 0:4]
         dets[:, 2:4] = dets[:, 2:4] - dets[:, 0:2]
 
-        if True:#is_background:
+        # Always apply margin for more robust face cropping
+        if is_background or True:
             upsize = dets[:, 2:4] * np.array([[0.15, 0.2]])
             dets[:, 0:2] -= upsize
             dets[:, 2:4] += upsize * 2
@@ -124,22 +124,17 @@ class RetinaFaceDetector():
                 return
             self.running = True
         im = frame.copy()
-        thread = threading.Thread(target=worker_thread, args=(self, im))
+        thread = threading.Thread(target=worker_thread, args=(self, im), daemon=True)
         thread.start()
 
     def get_results(self):
         with self._lock:
             if not self.finished:
                 return []
+            result = self._result
+            self._result = None
             self.finished = False
-        results = []
-        try:
-            while True:
-                detection = self.results.get_nowait()
-                results.append(detection)
-        except queue.Empty:
-            pass
-        return results
+        return [result] if result is not None else []
 
 if __name__== "__main__":
     retina = RetinaFaceDetector(top_k=40, min_conf=0.2)

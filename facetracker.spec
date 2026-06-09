@@ -4,7 +4,7 @@ block_cipher = None
 
 
 a = Analysis(['src/openseeface/facetracker.py'],
-             pathex=['C:\\OpenSeeFaceBuild'],
+             pathex=['.'],
              binaries=[('bindings/dll/dshowcapture/dshowcapture_x86.dll', '.'), ('bindings/dll/dshowcapture/dshowcapture_x64.dll', '.'), ('bindings/dll/dshowcapture/libminibmcapture32.dll', '.'), ('bindings/dll/dshowcapture/libminibmcapture64.dll', '.'), ('bindings/dll/escapi/escapi_x86.dll', '.'), ('bindings/dll/escapi/escapi_x64.dll', '.'), ('scripts/run.bat', '.'), ('msvcp140.dll', '.'), ('vcomp140.dll', '.'), ('concrt140.dll', '.'), ('vccorlib140.dll', '.')],
              datas=[],
              hiddenimports=[],

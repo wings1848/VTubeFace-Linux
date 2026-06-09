@@ -486,7 +486,7 @@ class Tracker():
 
         # Detect GPU acceleration availability and configure accordingly
         # (must happen before model file selection)
-        if 'CUDAExecutionProvider' in onnxruntime.capi._pybind_state.get_available_providers():
+        if 'CUDAExecutionProvider' in onnxruntime.get_available_providers():
             # CUDA EP 选项调优:
             # - gpu_mem_limit: 512MB (避免过度预分配, 实际按需增长)
             # - arena_extend_strategy: kSameAsRequested (按需分配)
@@ -503,7 +503,7 @@ class Tracker():
             model_suffix = '_gpu.onnx'
             options.intra_op_num_threads = 1
         else:
-            providersList = onnxruntime.capi._pybind_state.get_available_providers()
+            providersList = onnxruntime.get_available_providers()
             self._use_gpu = False
             model_suffix = '_opt.onnx'
 

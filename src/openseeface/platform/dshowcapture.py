@@ -8,8 +8,8 @@ import cv2
 import json
 
 def resolve(name):
-    f = os.path.join(os.path.dirname(__file__), name)
-    return f
+    """Resolve a path relative to this source file (works in dev tree)."""
+    return os.path.normpath(os.path.join(os.path.dirname(__file__), name))
 
 lib = None
 bm_lib = None

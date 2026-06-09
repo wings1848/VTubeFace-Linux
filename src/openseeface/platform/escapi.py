@@ -18,8 +18,8 @@ import numpy as np
 import cv2
 
 def resolve(name):
-    f = os.path.join(os.path.dirname(__file__), name)
-    return f
+    """Resolve a path relative to this source file (works in dev tree)."""
+    return os.path.normpath(os.path.join(os.path.dirname(__file__), name))
 
 
 class CAPTURE_PROPETIES:
