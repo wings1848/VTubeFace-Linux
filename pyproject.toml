@@ -1,0 +1,40 @@
+[tool.poetry]
+name = "openseeface"
+version = "1.20.4"
+description = "High-precision face tracking for VTubing and VR"
+authors = ["emilianavt"]
+license = "BSD-2-Clause"
+packages = [
+    { include = "openseeface", from = "src" },
+]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.15"
+numpy = ">=1.21.3"
+opencv-python = ">=4.5.4"
+Pillow = ">=8.4.0"
+onnxruntime = { version = ">=1.24.1", optional = true }
+onnxruntime-gpu = { version = ">=1.24.1", optional = true }
+nvidia-cublas-cu12 = { version = "*", optional = true }
+nvidia-cuda-runtime-cu12 = { version = "*", optional = true }
+nvidia-cufft-cu12 = { version = "*", optional = true }
+
+[tool.poetry.extras]
+# CPU 推理（默认）：安装 onnxruntime
+cpu = ["onnxruntime"]
+# GPU 加速：安装 onnxruntime-gpu + CUDA 12.x 运行时
+gpu = [
+    "onnxruntime-gpu",
+    "nvidia-cublas-cu12",
+    "nvidia-cuda-runtime-cu12",
+    "nvidia-cufft-cu12",
+]
+
+[tool.poetry.scripts]
+openseeface = "openseeface.__main__:main"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

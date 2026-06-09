@@ -1,0 +1,26 @@
+*.7z
+.codegraph/
+# 配置文件（用户生成）
+# 运行时文件
+Binary/*
+config/config.json
+config/.facetracker_config
+config/.facetracker_config.bak
+CSharp/*
+.facetracker_config
+.facetracker_console.log
+.facetracker.pid
+*.mp4
+progress.md
+__pycache__/
+*.pyd
+*.so
+run/daemon.log
+run/daemon.pid
+run/.facetracker_console.log
+run/.facetracker_data*.log
+run/.facetracker.pid
+Samples/*
+.venv/
+VSeeFace/*
+*.zip
